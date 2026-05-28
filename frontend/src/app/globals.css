@@ -1,0 +1,31 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 98%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 45%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
+  --border: 0 0% 90%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 55%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 98%;
+    --border: 0 0% 15%;
+  }
+}
