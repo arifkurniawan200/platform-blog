@@ -37,7 +37,7 @@ export default function HomePage() {
   const [articles, setArticles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { listArticles().then((r: any) => { setArticles(r.data); setLoading(false) }).catch(() => setLoading(false)) }, [])
+  useEffect(() => { listArticles().then((r: any) => { setArticles(r.data || []); setLoading(false) }).catch(() => setLoading(false)) }, [])
 
   if (loading) return <HomeSkeleton />
 

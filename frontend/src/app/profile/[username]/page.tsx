@@ -36,10 +36,10 @@ export default function ProfilePage() {
     setLoading(true)
     Promise.all([
       getUserProfile(username as string),
-      getUserProfile(username as string).then((p) => getUserStats(p.id)),
+      getUserProfile(username as string).then((p: any) => getUserStats(p.data?.id || p.id)),
     ])
       .then(([profileData, statsData]) => {
-        setProfile(profileData)
+        setProfile(profileData.data || profileData)
         if (statsData.data) setStats(statsData.data)
       })
       .catch(() => setError("User not found"))

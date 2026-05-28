@@ -34,7 +34,7 @@ export default function ArticlePage() {
   const [scrollProgress, setScrollProgress] = useState(0)
 
   useEffect(() => {
-    getArticle(slug).then((r: any) => { setArticle(r.data); setLoading(false) }).catch(() => setLoading(false))
+    getArticle(slug).then((r: any) => { setArticle(r.data || r); setLoading(false) }).catch(() => setLoading(false))
   }, [slug])
 
   useEffect(() => {

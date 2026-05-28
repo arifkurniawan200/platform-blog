@@ -67,13 +67,13 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		case usecase.ErrUsernameTaken:
 			response.WriteError(w, http.StatusConflict, "Username already taken")
 		default:
-			h.log.Error("Register failed", "error", err)
+			h.log.Error("Register failed", zap.Error(err))
 			response.WriteError(w, http.StatusInternalServerError, "Registration failed")
 		}
 		return
 	}
 
-	response.WriteJSON(w, http.StatusCreated, authResp)
+	response.WriteJSON(w, http.StatusCreated, map[string]interface{}{"data": authResp})
 }
 
 // Login handles POST /api/v1/auth/login
@@ -97,12 +97,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			response.WriteError(w, http.StatusUnauthorized, "Invalid email or password")
 			return
 		}
-		h.log.Error("Login failed", "error", err)
+		h.log.Error("Login failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Login failed")
 		return
 	}
 
-	response.WriteJSON(w, http.StatusOK, authResp)
+	response.WriteJSON(w, http.StatusOK, map[string]interface{}{"data": authResp})
 }
 
 func formatValidationError(err error) string {
@@ -134,7 +134,7 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 			response.WriteError(w, http.StatusNotFound, "User not found")
 			return
 		}
-		h.log.Error("Get profile failed", "error", err)
+		h.log.Error("Get profile failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to get profile")
 		return
 	}
@@ -145,7 +145,7 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		User:         *user,
 		ArticleCount: articleCount,
 	}
-	response.WriteJSON(w, http.StatusOK, resp)
+	response.WriteJSON(w, http.StatusOK, map[string]interface{}{"data": resp})
 }
 
 // UpdateProfile handles PATCH /api/v1/users/me
@@ -190,10 +190,10 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := repo.Update(ctx, user); err != nil {
-		h.log.Error("Update profile failed", "error", err)
+		h.log.Error("Update profile failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to update profile")
 		return
 	}
 
-	response.WriteJSON(w, http.StatusOK, user)
+	response.WriteJSON(w, http.StatusOK, map[string]interface{}{"data": user})
 }

@@ -15,8 +15,9 @@ export function ClapButton({ slug }: { slug: string }) {
   useEffect(() => {
     getClapInfo(slug, token || undefined)
       .then(res => {
-        setTotalClaps(res.total_claps)
-        setUserClaps(res.user_claps)
+        const d = res.data || res
+        setTotalClaps(d.total_claps || 0)
+        setUserClaps(d.user_claps || 0)
       })
       .catch(() => {})
   }, [slug, token])
@@ -30,8 +31,9 @@ export function ClapButton({ slug }: { slug: string }) {
     // Fire and forget — update optimistically
     clapArticle(slug, count, token)
       .then(res => {
-        setTotalClaps(res.total_claps)
-        setUserClaps(res.user_claps)
+        const d = res.data || res
+        setTotalClaps(d.total_claps || 0)
+        setUserClaps(d.user_claps || 0)
       })
       .catch(() => {})
 

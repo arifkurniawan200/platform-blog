@@ -76,12 +76,12 @@ func (h *ArticleHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	article, err := h.uc.Create(ctx, claims.Sub, &req)
 	if err != nil {
-		h.log.Error("Create article failed", "error", err)
+		h.log.Error("Create article failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to create article")
 		return
 	}
 
-	response.WriteJSON(w, http.StatusCreated, article)
+	response.WriteJSON(w, http.StatusCreated, map[string]interface{}{"data": article})
 }
 
 // GetBySlug handles GET /api/v1/articles/{slug}
@@ -101,12 +101,12 @@ func (h *ArticleHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 			response.WriteError(w, http.StatusNotFound, "Article not found")
 			return
 		}
-		h.log.Error("Get article failed", "error", err, "slug", slug)
+		h.log.Error("Get article failed", zap.Error(err), zap.String("slug", slug))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to get article")
 		return
 	}
 
-	response.WriteJSON(w, http.StatusOK, article)
+	response.WriteJSON(w, http.StatusOK, map[string]interface{}{"data": article})
 }
 
 // List handles GET /api/v1/articles
@@ -118,9 +118,12 @@ func (h *ArticleHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	articles, err := h.uc.List(ctx, limit, offset)
 	if err != nil {
-		h.log.Error("List articles failed", "error", err)
+		h.log.Error("List articles failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to list articles")
 		return
+	}
+	if articles == nil {
+		articles = []*domain.Article{}
 	}
 
 	response.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -172,7 +175,7 @@ func (h *ArticleHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 
 	comment, err := h.uc.CreateComment(ctx, claims.Sub, article.ID, &req)
 	if err != nil {
-		h.log.Error("Create comment failed", "error", err)
+		h.log.Error("Create comment failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to create comment")
 		return
 	}
@@ -180,7 +183,7 @@ func (h *ArticleHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	// Fire email notification async (best-effort)
 	go h.notifyAuthorOfComment(article.ID, claims.Sub, article.Title, req.Content)
 
-	response.WriteJSON(w, http.StatusCreated, comment)
+	response.WriteJSON(w, http.StatusCreated, map[string]interface{}{"data": comment})
 }
 
 // ListComments handles GET /api/v1/articles/{slug}/comments
@@ -206,9 +209,12 @@ func (h *ArticleHandler) ListComments(w http.ResponseWriter, r *http.Request) {
 
 	comments, err := h.uc.ListComments(ctx, article.ID)
 	if err != nil {
-		h.log.Error("List comments failed", "error", err)
+		h.log.Error("List comments failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to list comments")
 		return
+	}
+	if comments == nil {
+		comments = []*domain.CommentWithUser{}
 	}
 
 	response.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -234,7 +240,7 @@ func (h *ArticleHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.uc.DeleteComment(ctx, commentID, claims.Sub); err != nil {
-		h.log.Error("Delete comment failed", "error", err)
+		h.log.Error("Delete comment failed", zap.Error(err))
 		response.WriteError(w, http.StatusNotFound, "Comment not found or not authorized")
 		return
 	}
@@ -283,12 +289,12 @@ func (h *ArticleHandler) Clap(w http.ResponseWriter, r *http.Request) {
 
 	info, err := h.uc.ClapArticle(ctx, claims.Sub, article.ID, &req)
 	if err != nil {
-		h.log.Error("Clap failed", "error", err)
+		h.log.Error("Clap failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to clap article")
 		return
 	}
 
-	response.WriteJSON(w, http.StatusOK, info)
+	response.WriteJSON(w, http.StatusOK, map[string]interface{}{"data": info})
 }
 
 // GetClapInfo handles GET /api/v1/articles/{slug}/clap
@@ -320,12 +326,12 @@ func (h *ArticleHandler) GetClapInfo(w http.ResponseWriter, r *http.Request) {
 
 	info, err := h.uc.GetClapInfo(ctx, userID, article.ID)
 	if err != nil {
-		h.log.Error("Get clap info failed", "error", err)
+		h.log.Error("Get clap info failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to get clap info")
 		return
 	}
 
-	response.WriteJSON(w, http.StatusOK, info)
+	response.WriteJSON(w, http.StatusOK, map[string]interface{}{"data": info})
 }
 
 // ── Bookmarks ──
@@ -358,7 +364,7 @@ func (h *ArticleHandler) Bookmark(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.uc.BookmarkArticle(ctx, claims.Sub, article.ID); err != nil {
-		h.log.Error("Bookmark failed", "error", err)
+		h.log.Error("Bookmark failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to bookmark article")
 		return
 	}
@@ -394,7 +400,7 @@ func (h *ArticleHandler) Unbookmark(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.uc.UnbookmarkArticle(ctx, claims.Sub, article.ID); err != nil {
-		h.log.Error("Unbookmark failed", "error", err)
+		h.log.Error("Unbookmark failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to unbookmark article")
 		return
 	}
@@ -417,9 +423,12 @@ func (h *ArticleHandler) ListBookmarks(w http.ResponseWriter, r *http.Request) {
 
 	bookmarks, err := h.uc.ListBookmarks(ctx, claims.Sub, limit, offset)
 	if err != nil {
-		h.log.Error("List bookmarks failed", "error", err)
+		h.log.Error("List bookmarks failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to list bookmarks")
 		return
+	}
+	if bookmarks == nil {
+		bookmarks = []*domain.BookmarkInfo{}
 	}
 
 	response.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -442,9 +451,12 @@ func (h *ArticleHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	results, err := h.uc.Search(ctx, q, limit, offset)
 	if err != nil {
-		h.log.Error("Search failed", "error", err)
+		h.log.Error("Search failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Search failed")
 		return
+	}
+	if results == nil {
+		results = []*domain.ArticleSearchResult{}
 	}
 
 	response.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -465,7 +477,7 @@ func (h *ArticleHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 
 	stats, err := h.uc.GetUserStats(ctx, uID)
 	if err != nil {
-		h.log.Error("Get stats failed", "error", err)
+		h.log.Error("Get stats failed", zap.Error(err))
 		response.WriteError(w, http.StatusInternalServerError, "Failed to get stats")
 		return
 	}
@@ -490,8 +502,8 @@ func (h *ArticleHandler) notifyAuthorOfComment(articleID, commenterID, articleTi
 	// Notification logic: call auth service to check email_notify, then send via himalaya.
 	// This is a stub for now — full implementation requires auth service HTTP call + himalaya CLI.
 	h.log.Info("Comment notification would fire",
-		"article_id", articleID,
-		"commenter_id", commenterID,
-		"title", articleTitle,
+		zap.String("article_id", articleID),
+		zap.String("commenter_id", commenterID),
+		zap.String("title", articleTitle),
 	)
 }
