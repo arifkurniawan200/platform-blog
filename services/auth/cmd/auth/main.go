@@ -59,7 +59,7 @@ func main() {
 		srv.Shutdown(ctx)
 	}()
 
-	logger.Info("Auth service listening", "port", cfg.Port)
+	logger.Info("Auth service listening", zap.String("port", cfg.Port))
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server error: %v", err)
 	}

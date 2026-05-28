@@ -30,27 +30,26 @@ func NewArticleHandler(uc *usecase.ArticleUsecase, log *zap.Logger) *ArticleHand
 
 // RegisterRoutes registers article routes
 func (h *ArticleHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/v1/articles", h.Create)
+	withAuth := func(fn http.HandlerFunc) http.Handler {
+		return middleware.JWTMiddleware(fn)
+	}
+
+	// Public routes (no auth required)
 	mux.HandleFunc("GET /api/v1/articles", h.List)
 	mux.HandleFunc("GET /api/v1/articles/{slug}", h.GetBySlug)
-
-	// Comments
-	mux.HandleFunc("POST /api/v1/articles/{slug}/comments", h.CreateComment)
 	mux.HandleFunc("GET /api/v1/articles/{slug}/comments", h.ListComments)
-	mux.HandleFunc("DELETE /api/v1/articles/{slug}/comments/{id}", h.DeleteComment)
-
-	// Claps
-	mux.HandleFunc("POST /api/v1/articles/{slug}/clap", h.Clap)
 	mux.HandleFunc("GET /api/v1/articles/{slug}/clap", h.GetClapInfo)
-
-	// Bookmarks
-	mux.HandleFunc("POST /api/v1/articles/{slug}/bookmark", h.Bookmark)
-	mux.HandleFunc("DELETE /api/v1/articles/{slug}/bookmark", h.Unbookmark)
-	mux.HandleFunc("GET /api/v1/bookmarks", h.ListBookmarks)
-
-	// Search & Stats
 	mux.HandleFunc("GET /api/v1/search", h.Search)
 	mux.HandleFunc("GET /api/v1/users/{userID}/stats", h.GetUserStats)
+
+	// Protected routes (auth required)
+	mux.Handle("POST /api/v1/articles", withAuth(h.Create))
+	mux.Handle("POST /api/v1/articles/{slug}/comments", withAuth(h.CreateComment))
+	mux.Handle("DELETE /api/v1/articles/{slug}/comments/{id}", withAuth(h.DeleteComment))
+	mux.Handle("POST /api/v1/articles/{slug}/clap", withAuth(h.Clap))
+	mux.Handle("POST /api/v1/articles/{slug}/bookmark", withAuth(h.Bookmark))
+	mux.Handle("DELETE /api/v1/articles/{slug}/bookmark", withAuth(h.Unbookmark))
+	mux.Handle("GET /api/v1/bookmarks", withAuth(h.ListBookmarks))
 }
 
 // Create handles POST /api/v1/articles
@@ -214,7 +213,7 @@ func (h *ArticleHandler) ListComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if comments == nil {
-		comments = []*domain.CommentWithUser{}
+		comments = []*domain.Comment{}
 	}
 
 	response.WriteJSON(w, http.StatusOK, map[string]interface{}{
