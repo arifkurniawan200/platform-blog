@@ -5,6 +5,27 @@ import { useParams } from "next/navigation"
 import { getArticle } from "@/lib/api"
 import { formatDate, readingTime } from "@/lib/utils"
 import { Badge } from "@/components/ui"
+import { CommentSection } from "@/components/comment-section"
+import { ClapButton } from "@/components/clap-button"
+import { BookmarkButton } from "@/components/bookmark-button"
+
+function ArticleSkeleton() {
+  return (
+    <div className="max-w-[680px] mx-auto pt-8">
+      <div className="h-10 w-3/4 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse mb-6" />
+      <div className="flex gap-3 mb-8">
+        <div className="h-4 w-20 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse" />
+        <div className="h-4 w-16 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse" />
+        <div className="h-4 w-24 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse" />
+      </div>
+      <div className="space-y-3">
+        {[1,2,3,4,5,6,7,8].map(i => (
+          <div key={i} className="h-4 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function ArticlePage() {
   const { slug } = useParams<{ slug: string }>()
@@ -26,8 +47,15 @@ export default function ArticlePage() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  if (loading) return <div className="flex justify-center py-20"><div className="animate-spin h-8 w-8 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full" /></div>
-  if (!article) return <div className="text-center py-20 text-neutral-400">Article not found.</div>
+  if (loading) return <ArticleSkeleton />
+  if (!article) return (
+    <div className="text-center py-20">
+      <div className="text-5xl mb-4">🔍</div>
+      <h2 className="text-xl font-semibold mb-2">Article not found</h2>
+      <p className="text-neutral-500 mb-6">This article may have been removed or the link is incorrect.</p>
+      <a href="/" className="text-sm text-neutral-900 dark:text-white underline">Back to home</a>
+    </div>
+  )
 
   return (
     <>
@@ -44,6 +72,9 @@ export default function ArticlePage() {
             <span>{formatDate(article.published_at || article.created_at)}</span>
             <span>·</span>
             <span>{readingTime(article.content)} min read</span>
+            <span className="ml-auto flex items-center gap-1">
+              <BookmarkButton slug={slug} />
+            </span>
           </div>
           {article.tags?.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
@@ -81,7 +112,13 @@ export default function ArticlePage() {
             </div>
           </div>
         </footer>
+
+        {/* Comments */}
+        <CommentSection slug={slug} />
       </article>
+
+      {/* Clap button */}
+      <ClapButton slug={slug} />
     </>
   )
 }

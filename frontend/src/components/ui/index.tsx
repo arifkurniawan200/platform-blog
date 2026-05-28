@@ -42,6 +42,7 @@ export function Navbar() {
           {token ? (
             <>
               <Link href="/write" className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">Write</Link>
+              <Link href="/bookmarks" className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">Bookmarks</Link>
               <Button variant="ghost" size="sm" onClick={logout}>Logout</Button>
             </>
           ) : (

@@ -41,3 +41,34 @@ export function createArticle(body: { title: string; content: string; tags?: str
 export function updateArticle(slug: string, body: { title: string; content: string; tags?: string[] }, token: string) {
   return request<{ success: boolean; data: any }>(`/articles/${slug}`, { method: "PUT", body: JSON.stringify(body), token })
 }
+
+// Comments
+export function listComments(slug: string) {
+  return request<{ success: boolean; data: any[] }>(`/articles/${slug}/comments`)
+}
+export function createComment(slug: string, body: { content: string; parent_id?: string }, token: string) {
+  return request<{ success: boolean; data: any }>(`/articles/${slug}/comments`, { method: "POST", body: JSON.stringify(body), token })
+}
+export function deleteComment(slug: string, commentId: string, token: string) {
+  return request(`/articles/${slug}/comments/${commentId}`, { method: "DELETE", token })
+}
+
+// Claps
+export function getClapInfo(slug: string, token?: string) {
+  return request<{ total_claps: number; user_claps: number; article_id: string }>(`/articles/${slug}/clap${token ? "" : ""}`, token ? { token } : {})
+}
+export function clapArticle(slug: string, count: number, token: string) {
+  return request<{ total_claps: number; user_claps: number; article_id: string }>(`/articles/${slug}/clap`, { method: "POST", body: JSON.stringify({ count }), token })
+}
+
+// Bookmarks
+export function getBookmarks(token: string, page = 1, limit = 20) {
+  const offset = (page - 1) * limit
+  return request<{ success: boolean; data: any[] }>(`/bookmarks?limit=${limit}&offset=${offset}`, { token })
+}
+export function bookmarkArticle(slug: string, token: string) {
+  return request(`/articles/${slug}/bookmark`, { method: "POST", token })
+}
+export function unbookmarkArticle(slug: string, token: string) {
+  return request(`/articles/${slug}/bookmark`, { method: "DELETE", token })
+}
