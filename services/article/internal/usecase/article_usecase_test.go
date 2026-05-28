@@ -1,10 +1,7 @@
 package usecase
 
 import (
-	"context"
 	"testing"
-
-	"github.com/arifkurniawan200/platform-blog/services/auth/internal/domain"
 )
 
 func TestGenerateSlug(t *testing.T) {

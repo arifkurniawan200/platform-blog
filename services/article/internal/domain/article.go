@@ -72,3 +72,43 @@ type UpdateArticleRequest struct {
 	CoverImage string   `json:"cover_image"`
 	Tags       []string `json:"tags"`
 }
+
+// ── Comments ──
+
+// CreateCommentRequest is the payload for creating a comment
+type CreateCommentRequest struct {
+	Content  string  `json:"content" validate:"required,min=1,max=2000"`
+	ParentID *string `json:"parent_id,omitempty"`
+}
+
+// CommentWithUser is a comment enriched with user info
+type CommentWithUser struct {
+	Comment
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
+}
+
+// ── Claps ──
+
+// ClapRequest is the payload for clapping an article
+type ClapRequest struct {
+	Count int `json:"count" validate:"required,min=1,max=50"`
+}
+
+// ClapInfo holds per-article clap data
+type ClapInfo struct {
+	ArticleID   string `json:"article_id"`
+	TotalClaps  int    `json:"total_claps"`
+	UserClaps   int    `json:"user_claps"`
+}
+
+// ── Bookmarks ──
+
+// BookmarkInfo holds a single bookmark entry
+type BookmarkInfo struct {
+	ArticleID string `json:"article_id"`
+	Title     string `json:"title"`
+	Slug      string `json:"slug"`
+	CreatedAt string `json:"created_at"`
+}

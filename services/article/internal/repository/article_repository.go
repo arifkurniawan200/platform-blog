@@ -26,6 +26,19 @@ type ArticleRepository interface {
 	FindOrCreateTag(ctx context.Context, name, slug string) (*domain.Tag, error)
 	AddArticleTags(ctx context.Context, articleID string, tagIDs []string) error
 	GetArticleTags(ctx context.Context, articleID string) ([]domain.Tag, error)
+	// Comments
+	CreateComment(ctx context.Context, comment *domain.Comment) error
+	ListCommentsByArticle(ctx context.Context, articleID string) ([]*domain.Comment, error)
+	DeleteComment(ctx context.Context, id, userID string) error
+	// Claps
+	AddClap(ctx context.Context, userID, articleID string, count int) (int, error)
+	GetClapCount(ctx context.Context, articleID string) (int, error)
+	GetUserClapCount(ctx context.Context, userID, articleID string) (int, error)
+	// Bookmarks
+	AddBookmark(ctx context.Context, userID, articleID string) error
+	RemoveBookmark(ctx context.Context, userID, articleID string) error
+	IsBookmarked(ctx context.Context, userID, articleID string) (bool, error)
+	ListBookmarks(ctx context.Context, userID string, limit, offset int) ([]*domain.BookmarkInfo, error)
 }
 
 type pgArticleRepo struct {
@@ -193,4 +206,145 @@ func scanArticles(rows pgx.Rows) ([]*domain.Article, error) {
 		articles = append(articles, a)
 	}
 	return articles, nil
+}
+
+// ── Comment implementations ──
+
+func (r *pgArticleRepo) CreateComment(ctx context.Context, c *domain.Comment) error {
+	return r.pool.QueryRow(ctx,
+		`INSERT INTO comments (article_id, user_id, parent_id, content)
+		 VALUES ($1, $2, $3, $4)
+		 RETURNING id, created_at, updated_at`,
+		c.ArticleID, c.UserID, c.ParentID, c.Content,
+	).Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
+}
+
+func (r *pgArticleRepo) ListCommentsByArticle(ctx context.Context, articleID string) ([]*domain.Comment, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, article_id, user_id, parent_id, content, created_at, updated_at
+		 FROM comments WHERE article_id = $1
+		 ORDER BY created_at ASC`, articleID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []*domain.Comment
+	for rows.Next() {
+		c := &domain.Comment{}
+		if err := rows.Scan(&c.ID, &c.ArticleID, &c.UserID, &c.ParentID,
+			&c.Content, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			return nil, err
+		}
+		comments = append(comments, c)
+	}
+	return comments, nil
+}
+
+func (r *pgArticleRepo) DeleteComment(ctx context.Context, id, userID string) error {
+	tag, err := r.pool.Exec(ctx,
+		`DELETE FROM comments WHERE id = $1 AND user_id = $2`, id, userID,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errors.New("comment not found or not owned by user")
+	}
+	return nil
+}
+
+// ── Clap implementations ──
+
+func (r *pgArticleRepo) AddClap(ctx context.Context, userID, articleID string, count int) (int, error) {
+	var total int
+	err := r.pool.QueryRow(ctx,
+		`INSERT INTO claps (user_id, article_id, count) VALUES ($1, $2, $3)
+		 ON CONFLICT (user_id, article_id) DO UPDATE SET count = claps.count + $3
+		 RETURNING count`,
+		userID, articleID, count,
+	).Scan(&total)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func (r *pgArticleRepo) GetClapCount(ctx context.Context, articleID string) (int, error) {
+	var total int
+	err := r.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(count), 0) FROM claps WHERE article_id = $1`,
+		articleID,
+	).Scan(&total)
+	return total, err
+}
+
+func (r *pgArticleRepo) GetUserClapCount(ctx context.Context, userID, articleID string) (int, error) {
+	var count int
+	err := r.pool.QueryRow(ctx,
+		`SELECT count FROM claps WHERE user_id = $1 AND article_id = $2`,
+		userID, articleID,
+	).Scan(&count)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil
+	}
+	return count, err
+}
+
+// ── Bookmark implementations ──
+
+func (r *pgArticleRepo) AddBookmark(ctx context.Context, userID, articleID string) error {
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO bookmarks (user_id, article_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+		userID, articleID,
+	)
+	return err
+}
+
+func (r *pgArticleRepo) RemoveBookmark(ctx context.Context, userID, articleID string) error {
+	_, err := r.pool.Exec(ctx,
+		`DELETE FROM bookmarks WHERE user_id = $1 AND article_id = $2`,
+		userID, articleID,
+	)
+	return err
+}
+
+func (r *pgArticleRepo) IsBookmarked(ctx context.Context, userID, articleID string) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM bookmarks WHERE user_id = $1 AND article_id = $2)`,
+		userID, articleID,
+	).Scan(&exists)
+	return exists, err
+}
+
+func (r *pgArticleRepo) ListBookmarks(ctx context.Context, userID string, limit, offset int) ([]*domain.BookmarkInfo, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT a.id, a.title, a.slug, b.created_at
+		 FROM bookmarks b JOIN articles a ON b.article_id = a.id
+		 WHERE b.user_id = $1
+		 ORDER BY b.created_at DESC LIMIT $2 OFFSET $3`,
+		userID, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var bookmarks []*domain.BookmarkInfo
+	for rows.Next() {
+		bm := &domain.BookmarkInfo{}
+		var createdAt interface{}
+		if err := rows.Scan(&bm.ArticleID, &bm.Title, &bm.Slug, &createdAt); err != nil {
+			return nil, err
+		}
+		if t, ok := createdAt.(interface{ String() string }); ok {
+			bm.CreatedAt = t.String()
+		} else {
+			bm.CreatedAt = "unknown"
+		}
+		bookmarks = append(bookmarks, bm)
+	}
+	return bookmarks, nil
 }
