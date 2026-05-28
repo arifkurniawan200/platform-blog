@@ -25,6 +25,7 @@ type UserRepository interface {
 	FindByUsername(ctx context.Context, username string) (*domain.User, error)
 	Update(ctx context.Context, user *domain.User) error
 	List(ctx context.Context, limit, offset int) ([]*domain.User, error)
+	GetArticleCount(ctx context.Context, authorID string) (int, error)
 }
 
 type pgUserRepo struct {
@@ -48,10 +49,10 @@ func (r *pgUserRepo) Create(ctx context.Context, user *domain.User) error {
 func (r *pgUserRepo) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	user := &domain.User{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, email, display_name, bio, avatar_url, created_at, updated_at
+		`SELECT id, username, email, display_name, bio, avatar_url, email_notify_comments, created_at, updated_at
 		 FROM users WHERE id = $1`, id,
 	).Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName,
-		&user.Bio, &user.AvatarURL, &user.CreatedAt, &user.UpdatedAt)
+		&user.Bio, &user.AvatarURL, &user.EmailNotify, &user.CreatedAt, &user.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
@@ -61,10 +62,10 @@ func (r *pgUserRepo) FindByID(ctx context.Context, id string) (*domain.User, err
 func (r *pgUserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	user := &domain.User{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, email, password_hash, display_name, bio, avatar_url, created_at, updated_at
+		`SELECT id, username, email, password_hash, display_name, bio, avatar_url, email_notify_comments, created_at, updated_at
 		 FROM users WHERE email = $1`, email,
 	).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.DisplayName, &user.Bio, &user.AvatarURL, &user.CreatedAt, &user.UpdatedAt)
+		&user.DisplayName, &user.Bio, &user.AvatarURL, &user.EmailNotify, &user.CreatedAt, &user.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
@@ -74,10 +75,10 @@ func (r *pgUserRepo) FindByEmail(ctx context.Context, email string) (*domain.Use
 func (r *pgUserRepo) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	user := &domain.User{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, email, display_name, bio, avatar_url, created_at, updated_at
+		`SELECT id, username, email, display_name, bio, avatar_url, email_notify_comments, created_at, updated_at
 		 FROM users WHERE username = $1`, username,
 	).Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName,
-		&user.Bio, &user.AvatarURL, &user.CreatedAt, &user.UpdatedAt)
+		&user.Bio, &user.AvatarURL, &user.EmailNotify, &user.CreatedAt, &user.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
@@ -86,9 +87,9 @@ func (r *pgUserRepo) FindByUsername(ctx context.Context, username string) (*doma
 
 func (r *pgUserRepo) Update(ctx context.Context, user *domain.User) error {
 	tag, err := r.pool.Exec(ctx,
-		`UPDATE users SET display_name = $1, bio = $2, avatar_url = $3, updated_at = NOW()
-		 WHERE id = $4`,
-		user.DisplayName, user.Bio, user.AvatarURL, user.ID,
+		`UPDATE users SET display_name = $1, bio = $2, avatar_url = $3, email_notify_comments = $4, updated_at = NOW()
+		 WHERE id = $5`,
+		user.DisplayName, user.Bio, user.AvatarURL, user.EmailNotify, user.ID,
 	)
 	if err != nil {
 		return err
@@ -101,7 +102,7 @@ func (r *pgUserRepo) Update(ctx context.Context, user *domain.User) error {
 
 func (r *pgUserRepo) List(ctx context.Context, limit, offset int) ([]*domain.User, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, username, email, display_name, bio, avatar_url, created_at, updated_at
+		`SELECT id, username, email, display_name, bio, avatar_url, email_notify_comments, created_at, updated_at
 		 FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`, limit, offset,
 	)
 	if err != nil {
@@ -113,10 +114,19 @@ func (r *pgUserRepo) List(ctx context.Context, limit, offset int) ([]*domain.Use
 	for rows.Next() {
 		u := &domain.User{}
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName,
-			&u.Bio, &u.AvatarURL, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			&u.Bio, &u.AvatarURL, &u.EmailNotify, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+func (r *pgUserRepo) GetArticleCount(ctx context.Context, authorID string) (int, error) {
+	var count int
+	err := r.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM articles WHERE author_id = $1 AND status = 'published'`,
+		authorID,
+	).Scan(&count)
+	return count, err
 }

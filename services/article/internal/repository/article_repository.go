@@ -39,6 +39,10 @@ type ArticleRepository interface {
 	RemoveBookmark(ctx context.Context, userID, articleID string) error
 	IsBookmarked(ctx context.Context, userID, articleID string) (bool, error)
 	ListBookmarks(ctx context.Context, userID string, limit, offset int) ([]*domain.BookmarkInfo, error)
+	// Search
+	Search(ctx context.Context, query string, limit, offset int) ([]*domain.ArticleSearchResult, error)
+	// Stats
+	GetUserStats(ctx context.Context, userID string) (*domain.UserStats, error)
 }
 
 type pgArticleRepo struct {
@@ -347,4 +351,79 @@ func (r *pgArticleRepo) ListBookmarks(ctx context.Context, userID string, limit,
 		bookmarks = append(bookmarks, bm)
 	}
 	return bookmarks, nil
+}
+
+// ── Search ──
+
+func (r *pgArticleRepo) Search(ctx context.Context, query string, limit, offset int) ([]*domain.ArticleSearchResult, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT a.id, a.title, a.slug, a.subtitle, a.cover_image,
+		        a.reading_time, a.published_at,
+		        COALESCE(cc.clap_count, 0) AS clap_count,
+		        COALESCE(cm.comment_count, 0) AS comment_count,
+		        u.username, COALESCE(u.display_name, u.username),
+		        ts_rank(to_tsvector('english', a.title || ' ' || COALESCE(a.subtitle,'') || ' ' || a.content), plainto_tsquery('english', $1)) AS rank
+		 FROM articles a
+		 LEFT JOIN users u ON a.author_id = u.id
+		 LEFT JOIN (
+		   SELECT article_id, SUM(count) AS clap_count FROM article_claps GROUP BY article_id
+		 ) cc ON a.id = cc.article_id
+		 LEFT JOIN (
+		   SELECT article_id, COUNT(*) AS comment_count FROM comments GROUP BY article_id
+		 ) cm ON a.id = cm.article_id
+		 WHERE a.status = 'published'
+		   AND to_tsvector('english', a.title || ' ' || COALESCE(a.subtitle,'') || ' ' || a.content) @@ plainto_tsquery('english', $1)
+		 ORDER BY rank DESC
+		 LIMIT $2 OFFSET $3`,
+		query, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []*domain.ArticleSearchResult
+	for rows.Next() {
+		sr := &domain.ArticleSearchResult{}
+		if err := rows.Scan(&sr.ID, &sr.Title, &sr.Slug, &sr.Subtitle, &sr.CoverImage,
+			&sr.ReadingTime, &sr.PublishedAt, &sr.ClapCount, &sr.CommentCount,
+			&sr.AuthorUsername, &sr.AuthorDisplayName, &sr.Rank); err != nil {
+			return nil, err
+		}
+		results = append(results, sr)
+	}
+	return results, nil
+}
+
+// ── User Stats ──
+
+func (r *pgArticleRepo) GetUserStats(ctx context.Context, userID string) (*domain.UserStats, error) {
+	stats := &domain.UserStats{UserID: userID}
+
+	err := r.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM articles WHERE author_id = $1 AND status = 'published'`,
+		userID,
+	).Scan(&stats.ArticleCount)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(count), 0) FROM article_claps WHERE article_id IN
+		 (SELECT id FROM articles WHERE author_id = $1)`,
+		userID,
+	).Scan(&stats.TotalClaps)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(view_count), 0) FROM articles WHERE author_id = $1`,
+		userID,
+	).Scan(&stats.TotalViews)
+	if err != nil {
+		return nil, err
+	}
+
+	return stats, nil
 }

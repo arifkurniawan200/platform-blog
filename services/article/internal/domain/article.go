@@ -112,3 +112,39 @@ type BookmarkInfo struct {
 	Slug      string `json:"slug"`
 	CreatedAt string `json:"created_at"`
 }
+
+// ── Search ──
+
+// ArticleSearchResult is a lightweight search result
+type ArticleSearchResult struct {
+	ID            string  `json:"id"`
+	Title         string  `json:"title"`
+	Slug          string  `json:"slug"`
+	Subtitle      string  `json:"subtitle,omitempty"`
+	CoverImage    string  `json:"cover_image,omitempty"`
+	ReadingTime   int     `json:"reading_time"`
+	PublishedAt   *time.Time `json:"published_at,omitempty"`
+	ClapCount     int     `json:"clap_count"`
+	CommentCount  int     `json:"comment_count"`
+	AuthorUsername     string  `json:"author_username"`
+	AuthorDisplayName  string  `json:"author_display_name"`
+	Rank         float64 `json:"rank"`
+}
+
+// SearchRequest is the search query
+type SearchRequest struct {
+	Query  string `json:"q" validate:"required,min=1"`
+	Limit  int    `json:"limit"`
+	Offset int    `json:"offset"`
+}
+
+// ── User Stats ──
+
+// UserStats holds aggregate stats for a user
+type UserStats struct {
+	UserID       string `json:"user_id"`
+	ArticleCount int    `json:"article_count"`
+	TotalClaps   int    `json:"total_claps"`
+	TotalComments int   `json:"total_comments"`
+	TotalViews   int    `json:"total_views"`
+}

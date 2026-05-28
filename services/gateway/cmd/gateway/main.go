@@ -27,8 +27,7 @@ func main() {
 		{"/api/v1/articles/", articleURL, false}, // only public GET bypassed below
 		{"/api/v1/articles", articleURL, false},
 		{"/api/v1/bookmarks", articleURL, false},
-		{"/api/v1/users/", authURL, false},
-		{"/api/v1/users", authURL, false},
+		{"/api/v1/search", articleURL, true},
 	}
 
 	mux := http.NewServeMux()
@@ -48,6 +47,29 @@ func main() {
 	publicArticleProxy := httputil.NewSingleHostReverseProxy(articleURL)
 	mux.HandleFunc("GET /api/v1/articles/", func(w http.ResponseWriter, r *http.Request) {
 		// Allow ALL GET requests to articles (including sub-resources like /comments, /clap)
+		publicArticleProxy.ServeHTTP(w, r)
+	})
+
+	// Public user profile GET
+	publicAuthProxy := httputil.NewSingleHostReverseProxy(authURL)
+	mux.HandleFunc("GET /api/v1/users/{username}", func(w http.ResponseWriter, r *http.Request) {
+		publicAuthProxy.ServeHTTP(w, r)
+	})
+
+	// Protected user profile PATCH
+	authProxy := httputil.NewSingleHostReverseProxy(authURL)
+	mux.HandleFunc("PATCH /api/v1/users/me", func(w http.ResponseWriter, r *http.Request) {
+		middleware.JWTMiddleware(authProxy).ServeHTTP(w, r)
+	})
+
+	// Public user stats GET (article service)
+	publicArticleProxy := httputil.NewSingleHostReverseProxy(articleURL)
+	mux.HandleFunc("GET /api/v1/users/{userID}/stats", func(w http.ResponseWriter, r *http.Request) {
+		publicArticleProxy.ServeHTTP(w, r)
+	})
+
+	// Public search (article service)
+	mux.HandleFunc("GET /api/v1/search", func(w http.ResponseWriter, r *http.Request) {
 		publicArticleProxy.ServeHTTP(w, r)
 	})
 

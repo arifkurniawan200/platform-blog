@@ -37,7 +37,10 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-950/80 backdrop-blur">
       <div className="max-w-6xl mx-auto flex items-center justify-between h-14 px-4">
-        <Link href="/" className="font-bold text-lg tracking-tight">Platform Blog</Link>
+        <div className="flex items-center gap-4">
+          <Link href="/" className="font-bold text-lg tracking-tight">Platform Blog</Link>
+          <Link href="/search" className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors">🔍 Search</Link>
+        </div>
         <nav className="flex items-center gap-3">
           {token ? (
             <>
