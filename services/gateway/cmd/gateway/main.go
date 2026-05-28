@@ -6,7 +6,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/arifkurniawan200/platform-blog/pkg/middleware"
 )
@@ -27,6 +26,7 @@ func main() {
 		{"/api/v1/tags", articleURL, true},
 		{"/api/v1/articles/", articleURL, false}, // only public GET bypassed below
 		{"/api/v1/articles", articleURL, false},
+		{"/api/v1/bookmarks", articleURL, false},
 		{"/api/v1/users/", authURL, false},
 		{"/api/v1/users", authURL, false},
 	}
@@ -47,15 +47,8 @@ func main() {
 	// Public article GET (no auth required for reading)
 	publicArticleProxy := httputil.NewSingleHostReverseProxy(articleURL)
 	mux.HandleFunc("GET /api/v1/articles/", func(w http.ResponseWriter, r *http.Request) {
-		// Allow public reads — bypass JWT for GET article endpoints
-		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/articles/"), "/")
-		// GET /api/v1/articles (list) is public, GET /api/v1/articles/{slug} is public
-		if r.Method == "GET" && len(parts) <= 1 {
-			publicArticleProxy.ServeHTTP(w, r)
-			return
-		}
-		// All other methods (POST, PUT, DELETE) need auth
-		middleware.JWTMiddleware(publicArticleProxy).ServeHTTP(w, r)
+		// Allow ALL GET requests to articles (including sub-resources like /comments, /clap)
+		publicArticleProxy.ServeHTTP(w, r)
 	})
 
 	// Health check

@@ -6,13 +6,40 @@ import { listArticles } from "@/lib/api"
 import { Card, Badge } from "@/components/ui"
 import { formatDate, readingTime } from "@/lib/utils"
 
+function HomeSkeleton() {
+  return (
+    <div>
+      <div className="h-10 w-48 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse mb-3" />
+      <div className="h-5 w-96 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse mb-10" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1,2,3,4,5,6].map(i => (
+          <div key={i} className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-6">
+            <div className="flex gap-2 mb-3">
+              <div className="h-3 w-16 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse" />
+              <div className="h-3 w-12 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse" />
+              <div className="h-3 w-14 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse" />
+            </div>
+            <div className="h-6 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse mb-2" />
+            <div className="h-4 w-3/4 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse mb-1" />
+            <div className="h-4 w-1/2 bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse mb-3" />
+            <div className="flex gap-1.5">
+              <div className="h-5 w-12 bg-neutral-100 dark:bg-neutral-800 rounded-full animate-pulse" />
+              <div className="h-5 w-16 bg-neutral-100 dark:bg-neutral-800 rounded-full animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function HomePage() {
   const [articles, setArticles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { listArticles().then((r: any) => { setArticles(r.data); setLoading(false) }).catch(() => setLoading(false)) }, [])
 
-  if (loading) return <div className="flex justify-center py-20"><div className="animate-spin h-8 w-8 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full" /></div>
+  if (loading) return <HomeSkeleton />
 
   return (
     <div>
