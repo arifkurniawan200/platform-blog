@@ -362,17 +362,17 @@ func (r *pgArticleRepo) Search(ctx context.Context, query string, limit, offset 
 		        COALESCE(cc.clap_count, 0) AS clap_count,
 		        COALESCE(cm.comment_count, 0) AS comment_count,
 		        u.username, COALESCE(u.display_name, u.username),
-		        ts_rank(to_tsvector('english', a.title || ' ' || COALESCE(a.subtitle,'') || ' ' || a.content), plainto_tsquery('english', $1)) AS rank
-		 FROM articles a
-		 LEFT JOIN users u ON a.author_id = u.id
-		 LEFT JOIN (
-		   SELECT article_id, SUM(count) AS clap_count FROM claps GROUP BY article_id
-		 ) cc ON a.id = cc.article_id
-		 LEFT JOIN (
-		   SELECT article_id, COUNT(*) AS comment_count FROM comments GROUP BY article_id
-		 ) cm ON a.id = cm.article_id
-		 WHERE a.status = 'published'
-		   AND to_tsvector('english', a.title || ' ' || COALESCE(a.subtitle,'') || ' ' || a.content) @@ plainto_tsquery('english', $1)
+		        ts_rank(to_tsvector('simple', a.title || ' ' || COALESCE(a.subtitle,'') || ' ' || a.content), plainto_tsquery('simple', $1)) AS rank
+		         FROM articles a
+		         LEFT JOIN users u ON a.author_id = u.id
+		         LEFT JOIN (
+		           SELECT article_id, SUM(count) AS clap_count FROM claps GROUP BY article_id
+		         ) cc ON a.id = cc.article_id
+		         LEFT JOIN (
+		           SELECT article_id, COUNT(*) AS comment_count FROM comments GROUP BY article_id
+		         ) cm ON a.id = cm.article_id
+		         WHERE a.status = 'published'
+		           AND to_tsvector('simple', a.title || ' ' || COALESCE(a.subtitle,'') || ' ' || a.content) @@ plainto_tsquery('simple', $1)
 		 ORDER BY rank DESC
 		 LIMIT $2 OFFSET $3`,
 		query, limit, offset,

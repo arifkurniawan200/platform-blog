@@ -35,7 +35,7 @@ func (uc *ArticleUsecase) Create(ctx context.Context, authorID string, req *doma
 		Content:     req.Content,
 		CoverImage:  req.CoverImage,
 		ReadingTime: EstimateReadingTime(req.Content),
-		Status:      domain.StatusDraft,
+		Status:      domain.StatusPublished,
 	}
 
 	if err := uc.repo.Create(ctx, article); err != nil {
