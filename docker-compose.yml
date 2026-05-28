@@ -1,0 +1,63 @@
+version: "3.8"
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: medium
+      POSTGRES_PASSWORD: medium_secret
+      POSTGRES_DB: medium
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medium"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth:
+    build: services/auth
+    environment:
+      DATABASE_URL: postgres://medium:medium_secret@postgres:5432/medium?sslmode=disable
+      JWT_SECRET: super-secret-key-change-in-production
+      REDIS_URL: redis:6379
+      PORT: 8080
+    ports: ["8081:8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  article:
+    build: services/article
+    environment:
+      DATABASE_URL: postgres://medium:medium_secret@postgres:5432/medium?sslmode=disable
+      JWT_SECRET: super-secret-key-change-in-production
+      REDIS_URL: redis:6379
+      PORT: 8080
+    ports: ["8082:8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    build: services/gateway
+    environment:
+      AUTH_SERVICE_URL: http://auth:8080
+      ARTICLE_SERVICE_URL: http://article:8080
+      JWT_SECRET: super-secret-key-change-in-production
+      PORT: 8080
+    ports: ["8080:8080"]
+    depends_on: [auth, article]
+
+volumes:
+  pgdata:

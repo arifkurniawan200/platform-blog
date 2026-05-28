@@ -1,0 +1,5 @@
+# Platform Blog
+node_modules/
+.env
+*.log
+tmp/
