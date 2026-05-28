@@ -29,6 +29,11 @@ func NewAuthUsecase(repo repository.UserRepository, jwtSecret string) *AuthUseca
 	return &AuthUsecase{repo: repo, jwtSecret: []byte(jwtSecret)}
 }
 
+// GetUserRepo exposes the repository for external use (e.g. auth handler for profile)
+func (uc *AuthUsecase) GetUserRepo() repository.UserRepository {
+	return uc.repo
+}
+
 // Register creates a new user account
 func (uc *AuthUsecase) Register(ctx context.Context, req *domain.RegisterRequest) (*domain.AuthResponse, error) {
 	// Check existing

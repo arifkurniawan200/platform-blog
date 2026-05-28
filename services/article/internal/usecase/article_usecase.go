@@ -186,6 +186,26 @@ func (uc *ArticleUsecase) ListBookmarks(ctx context.Context, userID string, limi
 	return uc.repo.ListBookmarks(ctx, userID, limit, offset)
 }
 
+// ── Search ──
+
+// Search performs full-text search on published articles
+func (uc *ArticleUsecase) Search(ctx context.Context, query string, limit, offset int) ([]*domain.ArticleSearchResult, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return uc.repo.Search(ctx, query, limit, offset)
+}
+
+// ── User Stats ──
+
+// GetUserStats returns aggregate stats for a user
+func (uc *ArticleUsecase) GetUserStats(ctx context.Context, userID string) (*domain.UserStats, error) {
+	return uc.repo.GetUserStats(ctx, userID)
+}
+
 // ---- Helpers ----
 
 var nonAlphaRegex = regexp.MustCompile(`[^a-z0-9]+`)

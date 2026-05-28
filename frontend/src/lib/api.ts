@@ -72,3 +72,22 @@ export function bookmarkArticle(slug: string, token: string) {
 export function unbookmarkArticle(slug: string, token: string) {
   return request(`/articles/${slug}/bookmark`, { method: "DELETE", token })
 }
+
+// Search
+export function searchArticles(q: string, page = 1, limit = 20) {
+  const offset = (page - 1) * limit
+  return request<{ success?: boolean; data: any[] }>(`/search?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`)
+}
+
+// User profile
+export function getUserProfile(username: string) {
+  return request<{ id: string; username: string; display_name: string; bio?: string; avatar_url?: string; email_notify_comments: boolean; article_count: number; created_at: string }>(`/users/${username}`)
+}
+export function updateUserProfile(body: { display_name?: string; bio?: string; avatar_url?: string; email_notify_comments?: boolean }, token: string) {
+  return request(`/users/me`, { method: "PATCH", body: JSON.stringify(body), token })
+}
+
+// User stats
+export function getUserStats(userId: string) {
+  return request<{ success?: boolean; data: { article_count: number; total_claps: number; total_comments: number; total_views: number } }>(`/users/${userId}/stats`)
+}

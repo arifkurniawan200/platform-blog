@@ -8,8 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arifkurniawan200/platform-blog/pkg/middleware"
 	"github.com/arifkurniawan200/platform-blog/pkg/response"
 	"github.com/arifkurniawan200/platform-blog/services/auth/internal/domain"
+	"github.com/arifkurniawan200/platform-blog/services/auth/internal/repository"
 	"github.com/arifkurniawan200/platform-blog/services/auth/internal/usecase"
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
@@ -19,6 +21,7 @@ import (
 type AuthUsecaseInterface interface {
 	Register(ctx context.Context, req *domain.RegisterRequest) (*domain.AuthResponse, error)
 	Login(ctx context.Context, req *domain.LoginRequest) (*domain.AuthResponse, error)
+	GetUserRepo() repository.UserRepository
 }
 
 // AuthHandler handles auth HTTP endpoints
@@ -37,6 +40,8 @@ func NewAuthHandler(uc AuthUsecaseInterface, log *zap.Logger) *AuthHandler {
 func (h *AuthHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/auth/register", h.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", h.Login)
+	mux.HandleFunc("GET /api/v1/users/{username}", h.GetProfile)
+	mux.HandleFunc("PATCH /api/v1/users/me", h.UpdateProfile)
 }
 
 // Register handles POST /api/v1/auth/register
@@ -109,4 +114,86 @@ func formatValidationError(err error) string {
 		return strings.Join(fieldErrors, "; ")
 	}
 	return err.Error()
+}
+
+// GetProfile handles GET /api/v1/users/{username}
+func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	username := r.PathValue("username")
+	if username == "" {
+		response.WriteError(w, http.StatusBadRequest, "Missing username")
+		return
+	}
+
+	repo := h.uc.GetUserRepo()
+	user, err := repo.FindByUsername(ctx, username)
+	if err != nil {
+		if err == repository.ErrUserNotFound {
+			response.WriteError(w, http.StatusNotFound, "User not found")
+			return
+		}
+		h.log.Error("Get profile failed", "error", err)
+		response.WriteError(w, http.StatusInternalServerError, "Failed to get profile")
+		return
+	}
+
+	articleCount, _ := repo.GetArticleCount(ctx, user.ID)
+
+	resp := domain.ProfileResponse{
+		User:         *user,
+		ArticleCount: articleCount,
+	}
+	response.WriteJSON(w, http.StatusOK, resp)
+}
+
+// UpdateProfile handles PATCH /api/v1/users/me
+func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	claims, ok := middleware.GetClaims(ctx)
+	if !ok {
+		response.WriteError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	repo := h.uc.GetUserRepo()
+	user, err := repo.FindByID(ctx, claims.Sub)
+	if err != nil {
+		response.WriteError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	var req domain.UpdateProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	if err := h.valid.Struct(req); err != nil {
+		response.WriteError(w, http.StatusUnprocessableEntity, formatValidationError(err))
+		return
+	}
+
+	if req.DisplayName != nil {
+		user.DisplayName = *req.DisplayName
+	}
+	if req.Bio != nil {
+		user.Bio = *req.Bio
+	}
+	if req.AvatarURL != nil {
+		user.AvatarURL = *req.AvatarURL
+	}
+	if req.EmailNotify != nil {
+		user.EmailNotify = *req.EmailNotify
+	}
+
+	if err := repo.Update(ctx, user); err != nil {
+		h.log.Error("Update profile failed", "error", err)
+		response.WriteError(w, http.StatusInternalServerError, "Failed to update profile")
+		return
+	}
+
+	response.WriteJSON(w, http.StatusOK, user)
 }
