@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/arifkurniawan200/platform-blog/services/auth/internal/domain"
 	"github.com/jackc/pgx/v5"
@@ -49,7 +48,7 @@ func (r *pgUserRepo) Create(ctx context.Context, user *domain.User) error {
 func (r *pgUserRepo) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	user := &domain.User{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, email, display_name, bio, avatar_url, email_notify_comments, created_at, updated_at
+		`SELECT id, username, email, COALESCE(display_name, username), COALESCE(bio, ''), COALESCE(avatar_url, ''), email_notify_comments, created_at, updated_at
 		 FROM users WHERE id = $1`, id,
 	).Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName,
 		&user.Bio, &user.AvatarURL, &user.EmailNotify, &user.CreatedAt, &user.UpdatedAt)
@@ -62,7 +61,7 @@ func (r *pgUserRepo) FindByID(ctx context.Context, id string) (*domain.User, err
 func (r *pgUserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	user := &domain.User{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, email, password_hash, display_name, bio, avatar_url, email_notify_comments, created_at, updated_at
+		`SELECT id, username, email, password_hash, COALESCE(display_name, username), COALESCE(bio, ''), COALESCE(avatar_url, ''), email_notify_comments, created_at, updated_at
 		 FROM users WHERE email = $1`, email,
 	).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 		&user.DisplayName, &user.Bio, &user.AvatarURL, &user.EmailNotify, &user.CreatedAt, &user.UpdatedAt)
@@ -75,7 +74,7 @@ func (r *pgUserRepo) FindByEmail(ctx context.Context, email string) (*domain.Use
 func (r *pgUserRepo) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	user := &domain.User{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, email, display_name, bio, avatar_url, email_notify_comments, created_at, updated_at
+		`SELECT id, username, email, COALESCE(display_name, username), COALESCE(bio, ''), COALESCE(avatar_url, ''), email_notify_comments, created_at, updated_at
 		 FROM users WHERE username = $1`, username,
 	).Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName,
 		&user.Bio, &user.AvatarURL, &user.EmailNotify, &user.CreatedAt, &user.UpdatedAt)
@@ -102,7 +101,7 @@ func (r *pgUserRepo) Update(ctx context.Context, user *domain.User) error {
 
 func (r *pgUserRepo) List(ctx context.Context, limit, offset int) ([]*domain.User, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, username, email, display_name, bio, avatar_url, email_notify_comments, created_at, updated_at
+		`SELECT id, username, email, COALESCE(display_name, username), COALESCE(bio, ''), COALESCE(avatar_url, ''), email_notify_comments, created_at, updated_at
 		 FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`, limit, offset,
 	)
 	if err != nil {

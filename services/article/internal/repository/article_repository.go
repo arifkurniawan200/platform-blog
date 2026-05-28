@@ -70,7 +70,7 @@ func (r *pgArticleRepo) Create(ctx context.Context, a *domain.Article) error {
 func (r *pgArticleRepo) FindBySlug(ctx context.Context, slug string) (*domain.Article, error) {
 	a := &domain.Article{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, author_id, title, slug, subtitle, content, cover_image,
+		`SELECT id, author_id, title, slug, COALESCE(subtitle, ''), content, COALESCE(cover_image, ''),
 		        reading_time, status, published_at, view_count, created_at, updated_at
 		 FROM articles WHERE slug = $1`, slug,
 	).Scan(&a.ID, &a.AuthorID, &a.Title, &a.Slug, &a.Subtitle, &a.Content,
@@ -85,7 +85,7 @@ func (r *pgArticleRepo) FindBySlug(ctx context.Context, slug string) (*domain.Ar
 func (r *pgArticleRepo) FindByID(ctx context.Context, id string) (*domain.Article, error) {
 	a := &domain.Article{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, author_id, title, slug, subtitle, content, cover_image,
+		`SELECT id, author_id, title, slug, COALESCE(subtitle, ''), content, COALESCE(cover_image, ''),
 		        reading_time, status, published_at, view_count, created_at, updated_at
 		 FROM articles WHERE id = $1`, id,
 	).Scan(&a.ID, &a.AuthorID, &a.Title, &a.Slug, &a.Subtitle, &a.Content,
@@ -127,7 +127,7 @@ func (r *pgArticleRepo) Delete(ctx context.Context, id string) error {
 
 func (r *pgArticleRepo) List(ctx context.Context, limit, offset int) ([]*domain.Article, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, author_id, title, slug, subtitle, cover_image,
+		`SELECT id, author_id, title, slug, COALESCE(subtitle, ''), COALESCE(cover_image, ''),
 		        reading_time, status, published_at, view_count, created_at, updated_at
 		 FROM articles WHERE status = 'published'
 		 ORDER BY published_at DESC LIMIT $1 OFFSET $2`, limit, offset,
@@ -141,7 +141,7 @@ func (r *pgArticleRepo) List(ctx context.Context, limit, offset int) ([]*domain.
 
 func (r *pgArticleRepo) ListByAuthor(ctx context.Context, authorID string, limit, offset int) ([]*domain.Article, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, author_id, title, slug, subtitle, cover_image,
+		`SELECT id, author_id, title, slug, COALESCE(subtitle, ''), COALESCE(cover_image, ''),
 		        reading_time, status, published_at, view_count, created_at, updated_at
 		 FROM articles WHERE author_id = $1
 		 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, authorID, limit, offset,
@@ -357,7 +357,7 @@ func (r *pgArticleRepo) ListBookmarks(ctx context.Context, userID string, limit,
 
 func (r *pgArticleRepo) Search(ctx context.Context, query string, limit, offset int) ([]*domain.ArticleSearchResult, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT a.id, a.title, a.slug, a.subtitle, a.cover_image,
+		`SELECT a.id, a.title, a.slug, COALESCE(a.subtitle, ''), COALESCE(a.cover_image, ''),
 		        a.reading_time, a.published_at,
 		        COALESCE(cc.clap_count, 0) AS clap_count,
 		        COALESCE(cm.comment_count, 0) AS comment_count,
@@ -366,7 +366,7 @@ func (r *pgArticleRepo) Search(ctx context.Context, query string, limit, offset 
 		 FROM articles a
 		 LEFT JOIN users u ON a.author_id = u.id
 		 LEFT JOIN (
-		   SELECT article_id, SUM(count) AS clap_count FROM article_claps GROUP BY article_id
+		   SELECT article_id, SUM(count) AS clap_count FROM claps GROUP BY article_id
 		 ) cc ON a.id = cc.article_id
 		 LEFT JOIN (
 		   SELECT article_id, COUNT(*) AS comment_count FROM comments GROUP BY article_id
@@ -409,7 +409,7 @@ func (r *pgArticleRepo) GetUserStats(ctx context.Context, userID string) (*domai
 	}
 
 	err = r.pool.QueryRow(ctx,
-		`SELECT COALESCE(SUM(count), 0) FROM article_claps WHERE article_id IN
+		`SELECT COALESCE(SUM(count), 0) FROM claps WHERE article_id IN
 		 (SELECT id FROM articles WHERE author_id = $1)`,
 		userID,
 	).Scan(&stats.TotalClaps)

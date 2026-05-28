@@ -49,6 +49,10 @@ func main() {
 		// Allow ALL GET requests to articles (including sub-resources like /comments, /clap)
 		publicArticleProxy.ServeHTTP(w, r)
 	})
+	mux.HandleFunc("GET /api/v1/articles", func(w http.ResponseWriter, r *http.Request) {
+		// Article list (no trailing slash)
+		publicArticleProxy.ServeHTTP(w, r)
+	})
 
 	// Public user profile GET
 	publicAuthProxy := httputil.NewSingleHostReverseProxy(authURL)
@@ -63,7 +67,7 @@ func main() {
 	})
 
 	// Public user stats GET (article service)
-	publicArticleProxy := httputil.NewSingleHostReverseProxy(articleURL)
+	publicArticleProxy = httputil.NewSingleHostReverseProxy(articleURL)
 	mux.HandleFunc("GET /api/v1/users/{userID}/stats", func(w http.ResponseWriter, r *http.Request) {
 		publicArticleProxy.ServeHTTP(w, r)
 	})
@@ -87,7 +91,10 @@ func main() {
 	log.Printf("  Auth service: %s", authURL)
 	log.Printf("  Article service: %s", articleURL)
 
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	// Wrap with CORS middleware so browsers can call from any origin
+	corsHandler := corsMiddleware(mux)
+
+	if err := http.ListenAndServe(":"+port, corsHandler); err != nil {
 		log.Fatalf("Gateway failed: %v", err)
 	}
 }
